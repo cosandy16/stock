@@ -98,7 +98,15 @@ if stock_id:
         col3.metric("偏離率" if not IS_CLOUD else "Bias Ratio", f"{bias_ratio:.2f} %", delta=f"{bias_ratio:.2f}%", delta_color="inverse")
 
         # 5. 繪製圖表
-        fig, ax = plt.subplots(figsize=(12, 6))
+        #fig, ax = plt.subplots(figsize=(12, 6))
+        # --- 在 plt.subplots 之前加入這些設定 ---
+        plt.rcParams['font.size'] = 12          # 提高基礎字體大小 (預設通常是 10)
+        plt.rcParams['legend.fontsize'] = 10    # 圖例字體大小
+        plt.rcParams['axes.labelsize'] = 12     # 座標軸標籤大小
+        plt.rcParams['xtick.labelsize'] = 10    # X 軸刻度大小
+        plt.rcParams['ytick.labelsize'] = 10    # Y 軸刻度大小
+
+        fig, ax = plt.subplots(figsize=(10, 8)) # 稍微調高高度比例，適合手機直向閱讀
         
         # 語言對照表
         L = {
