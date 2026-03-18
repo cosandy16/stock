@@ -80,4 +80,55 @@ if stock_id:
         df['Trend'] = slope * x + intercept
         
         # 2. 計算標準差與五條線
-        std = np.std(
+        std = np.std(y - df['Trend'])
+        df['Upper_2'] = df['Trend'] + 2 * std
+        df['Upper_1'] = df['Trend'] + 1 * std
+        df['Lower_1'] = df['Trend'] - 1 * std
+        df['Lower_2'] = df['Trend'] - 2 * std
+        
+        # 3. 計算目前的數據
+        last_price = df['Close'].iloc[-1]
+        trend_price = df['Trend'].iloc[-1]
+        bias_ratio = ((last_price - trend_price) / trend_price) * 100
+
+        # 4. 顯示數據指標
+        col1, col2, col3 = st.columns(3)
+        col1.metric("目前股價 (Current)", f"{last_price}")
+        col2.metric("中心線值 (Trend)", f"{trend_price:.2f}")
+        col3.metric("偏離率 (Bias)", f"{bias_ratio:.2f} %", delta=f"{bias_ratio:.2f}%", delta_color="inverse")
+
+        # 5. 繪製圖表
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
+        # 設定語系 (避免雲端亂碼)
+        L = {
+            'close': '收盤價 (Close)' if not IS_CLOUD else 'Close',
+            'up2': '極度樂觀 (+2SD)' if not IS_CLOUD else 'Extreme Optimistic (+2SD)',
+            'up1': '樂觀 (+1SD)' if not IS_CLOUD else 'Optimistic (+1SD)',
+            'trend': '趨勢線 (Trend)' if not IS_CLOUD else 'Trend Line',
+            'low1': '悲觀 (-1SD)' if not IS_CLOUD else 'Pessimistic (-1SD)',
+            'low2': '極度悲觀 (-2SD)' if not IS_CLOUD else 'Extreme Pessimistic (-2SD)',
+        }
+
+        ax.plot(df.index, df['Close'], label=L['close'], color='black', linewidth=1.5, alpha=0.6)
+        ax.plot(df.index, df['Upper_2'], label=L['up2'], color='#d62728', linestyle='--')
+        ax.plot(df.index, df['Upper_1'], label=L['up1'], color='#ff7f0e', linestyle='--')
+        ax.plot(df.index, df['Trend'], label=L['trend'], color='#1f77b4', linewidth=2)
+        ax.plot(df.index, df['Lower_1'], label=L['low1'], color='#2ca02c', linestyle='--')
+        ax.plot(df.index, df['Lower_2'], label=L['low2'], color='#006400', linestyle='--')
+        
+        ax.set_title(f"{full_name} ({period_years}Y Trend)", fontsize=14)
+        ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+        
+        st.pyplot(fig)
+        
+        # 6. 數據詳情
+        with st.expander("📝 查看原始數據與分析結果"):
+            st.dataframe(df.tail(10))
+            
+    elif full_name == "資料量不足":
+        st.warning("該標的上市時間太短，不足以計算長期趨勢。")
+    else:
+        st.error("無法取得資料。請確認代碼是否正確，或 API 流量已達上限。")
