@@ -25,47 +25,40 @@ IS_CLOUD = get_font_settings()
 @st.cache_data(ttl=3600)
 def load_data(stock_id, period_years):
     dl = DataLoader()
-    # 如果有 Token 建議填入以增加美股抓取穩定度
-    # dl.login(token="YOUR_TOKEN") 
     
-    # 判定市場：如果輸入全是數字則為台股，包含英文字母則為美股
-    is_us_stock = any(c.isalpha() for c in stock_id)
+    # 判斷是台股還是美股
+    is_us = any(c.isalpha() for c in stock_id)
     stock_id = stock_id.upper()
-    
     start_date = (datetime.now() - timedelta(days=int((period_years + 0.6) * 365))).strftime('%Y-%m-%d')
     
     try:
-        if is_us_stock:
-            # 抓取美股資料
-            df = dl.us_stock_daily(stock_id=stock_id, start_date=start_date)
+        if is_us:
+            # 抓取美股：指定美股資料集
+            df = dl.get_data(dataset="USStockPrice", data_id=stock_id, start_date=start_date)
             display_name = f"US Stock: {stock_id}"
         else:
-            # 抓取台股資料
+            # 抓取台股
             df = dl.taiwan_stock_daily(stock_id=stock_id, start_date=start_date)
-            # 嘗試抓台股名稱 (美股通常不需抓中文名)
-            try:
-                df_info = dl.taiwan_stock_info()
-                stock_name = df_info[df_info['stock_id'] == stock_id]['stock_name'].values[0]
-                display_name = stock_id if IS_CLOUD else f"{stock_id} {stock_name}"
-            except:
-                display_name = stock_id
+            display_name = stock_id # 台股名稱抓取邏輯可保留原樣
 
-        if df is None or df.empty or 'close' not in df.columns:
+        if df is None or df.empty:
+            return None, None
+            
+        # --- 核心修正：統一欄位名稱為小寫，避免大小寫造成的 KeyError ---
+        df.columns = [c.lower() for c in df.columns]
+        
+        # 再次檢查是否有 close 欄位
+        if 'close' not in df.columns:
             return None, None
             
         df['date'] = pd.to_datetime(df['date'])
         df = df.sort_values('date').set_index('date')
-        df = df.rename(columns={'close': 'Close'})
+        df = df.rename(columns={'close': 'Close'}) # 統一改回我們後面計算用的 'Close'
         
-        total_days = int(period_years * 252)
-        df = df.tail(total_days).copy()
-        
-        if len(df) < 100:
-            return None, "資料量不足"
-            
-        return df, display_name.strip()
+        df = df.tail(int(period_years * 252)).copy()
+        return df, display_name
     except Exception as e:
-        st.error(f"連線 API 發生錯誤: {e}")
+        st.error(f"錯誤細節: {e}")
         return None, None
 
 # --- 3. 側邊欄控制區 ---
